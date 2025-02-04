@@ -243,6 +243,20 @@
 		regulator-boot-on;
 	};
 
+	main_cam_vaf: main-cam-vaf-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "main_cam_vaf";
+
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-enable-ramp-delay = <100>;
+
+		gpio = <&tlmm 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vreg_bob>;
+	};
+
 	main_cam_vdig: main-cam-vdig-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "main_cam_vdig";
@@ -313,19 +327,6 @@
 		vbias-supply = <&vreg_bob>;
 	};
 
-	sub_cam_vdig: sub-cam-vdig-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "sub_cam_vdig";
-
-		regulator-min-microvolt = <2800000>;
-		regulator-max-microvolt = <2800000>;
-
-		gpio = <&tlmm 78 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-
-		vin-supply = <&vreg_bob>;
-	};
-
 	sub_cam_vaf: sub-cam-vaf-supply {
 		compatible = "regulator-fixed";
 		regulator-name = "sub_cam_vaf";
@@ -335,6 +336,19 @@
 		regulator-enable-ramp-delay = <100>;
 
 		gpio = <&tlmm 77 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vreg_bob>;
+	};
+
+	sub_cam_vdig: sub-cam-vdig-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "sub_cam_vdig";
+
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+
+		gpio = <&tlmm 78 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		vin-supply = <&vreg_bob>;
@@ -462,7 +476,7 @@
 			regulator-min-microvolt = <2864000>;
 			regulator-max-microvolt = <3312000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-		};		
+		};
 
 		vreg_l23a_3p3: ldo23 {
 			regulator-min-microvolt = <3300000>;
@@ -535,6 +549,48 @@
 	};
 };
 
+&camss {
+	vdda-phy-supply = <&vreg_l1a_0p875>;
+	vdda-pll-supply = <&vreg_l26a_1p2>;
+
+	vdda-csi0-supply = <&vdda_mipi_csi0_0p9>;
+	vdda-csi1-supply = <&vdda_mipi_csi1_0p9>;
+	vdda-csi2-supply = <&vdda_mipi_csi2_0p9>;
+
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			csiphy0_ep: endpoint {
+				bus-type = <MEDIA_BUS_TYPE_CSI2_CPHY>;
+				data-lanes = <0 1 2>;
+				remote-endpoint = <&imx519_ep>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			csiphy1_ep: endpoint {
+				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&imx376k_ep>;
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+			csiphy2_ep: endpoint {
+				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&imx371_ep>;
+			};
+		};
+	};
+};
+
 &cci {
 	status = "okay";
 };
@@ -582,49 +638,14 @@
 };
 
 &cci_i2c0 {
-	rear_cam: camera@1a {
-		compatible = "sony,imx519";
-		reg = <0x1a>;
-
-		reset-gpios = <&tlmm 28 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&main_cam_default>;
-		pinctrl-1 = <&main_cam_sleep>;
-
-		clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
-		clock-names = "xclk";
-		clock-frequency = <24000000>;
-		assigned-clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
-		assigned-clock-rates = <24000000>;
-
-		power-domains = <&clock_camcc TITAN_TOP_GDSC>;
-
-		vana-supply = <&main_cam_vana>;
-		vcore-supply = <&main_cam_vdig>;
-		vio-supply = <&cam_vio_1p8>;
-
-		orientation = <1>; /* Rear camera */
-		rotation = <90>;
-
-		status = "okay";
-
-		port {
-			imx519_ep: endpoint {
-				remote-endpoint = <&csiphy0_ep>;
-				data-lanes = <1 2 3>;
-				link-frequencies = /bits/ 64 <500399375>;
-			};
-		};
-	};
-
 	front_cam: camera@10 {
 		compatible = "sony,imx371";
 		reg = <0x10>;
 
-		reset-gpios = <&tlmm 9 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 9 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&front_cam_default>;
-		pinctrl-1 = <&front_cam_sleep>;
+		pinctrl-0 = <&front_cam_default &cam_mclk1_default>;
+		pinctrl-1 = <&front_cam_sleep &cam_mclk1_sleep>;
 
 		clocks = <&clock_camcc CAM_CC_MCLK1_CLK>;
 		clock-names = "xclk";
@@ -649,6 +670,41 @@
 			};
 		};
 	};
+
+	rear_cam: camera@1a {
+		compatible = "sony,imx519";
+		reg = <0x1a>;
+
+		reset-gpios = <&tlmm 28 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&main_cam_default &cam_mclk0_default>;
+		pinctrl-1 = <&main_cam_sleep &cam_mclk0_sleep>;
+
+		clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
+		clock-names = "xclk";
+		clock-frequency = <24000000>;
+		assigned-clocks = <&clock_camcc CAM_CC_MCLK0_CLK>;
+		assigned-clock-rates = <24000000>;
+
+		power-domains = <&clock_camcc TITAN_TOP_GDSC>;
+
+		vana-supply = <&main_cam_vana>;
+		vcore-supply = <&main_cam_vdig>;
+		vio-supply = <&cam_vio_1p8>;
+
+		orientation = <1>; /* Rear camera */
+		rotation = <270>;
+
+		status = "okay";
+
+		port {
+			imx519_ep: endpoint {
+				remote-endpoint = <&csiphy0_ep>;
+				data-lanes = <1 2 3>;
+				link-frequencies = /bits/ 64 <500399375>;
+			};
+		};
+	};
 };
 
 &cci_i2c1 {
@@ -662,10 +718,10 @@
 		compatible = "sony,imx376k";
 		reg = <0x10>;
 
-		reset-gpios = <&tlmm 23 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 23 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&sub_cam_default>;
-		pinctrl-1 = <&sub_cam_sleep>;
+		pinctrl-0 = <&sub_cam_default &cam_mclk2_default>;
+		pinctrl-1 = <&sub_cam_sleep &cam_mclk2_sleep>;
 
 		clocks = <&clock_camcc CAM_CC_MCLK2_CLK>;
 		clock-names = "xclk";
@@ -1214,13 +1270,6 @@
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
 	main_cam_default: main-cam-default-state {
-		mclk0 {
-			pins = "gpio13";
-			function = "cam_mclk";
-			bias-disable;
-			drive-strength = <2>;
-		};
-
 		rst {
 			pins = "gpio28";
 			function = "gpio";
@@ -1251,13 +1300,6 @@
 	};
 
 	main_cam_sleep: main-cam-sleep-state {
-		mclk0 {
-			pins = "gpio13";
-			function = "cam_mclk";
-			bias-pull-down;
-			drive-strength = <2>;
-		};
-
 		rst {
 			pins = "gpio28";
 			function = "gpio";
@@ -1288,13 +1330,6 @@
 	};
 
 	sub_cam_default: sub-cam-default-state {
-		mclk1 {
-			pins = "gpio15";
-			function = "cam_mclk";
-			bias-disable;
-			drive-strength = <2>;
-		};
-
 		rst {
 			pins = "gpio23";
 			function = "gpio";
@@ -1325,13 +1360,6 @@
 	};
 
 	sub_cam_sleep: sub-cam-sleep-state {
-		mclk1 {
-			pins = "gpio15";
-			function = "cam_mclk";
-			bias-pull-down;
-			drive-strength = <2>;
-		};
-
 		rst {
 			pins = "gpio23";
 			function = "gpio";
@@ -1362,13 +1390,6 @@
 	};
 
 	front_cam_default: front-cam-default-state {
-		mclk2 {
-			pins = "gpio14";
-			function = "cam_mclk";
-			bias-disable;
-			drive-strength = <2>;
-		};
-
 		rst {
 			pins = "gpio9";
 			function = "gpio";
@@ -1392,13 +1413,6 @@
 	};
 
 	front_cam_sleep: front-cam-sleep-state {
-		mclk2 {
-			pins = "gpio14";
-			function = "cam_mclk";
-			bias-pull-down;
-			drive-strength = <2>;
-		};
-
 		rst {
 			pins = "gpio9";
 			function = "gpio";

@@ -38,7 +38,7 @@
 		regulator-max-microvolt = <2864000>;
 		regulator-enable-ramp-delay = <100>;
 
-		gpio = <&tlmm 40 GPIO_ACTIVE_HIGH>; 
+		gpio = <&tlmm 40 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		vin-supply = <&vreg_l22a_3p3>;
