@@ -24,9 +24,6 @@
 #include <sound/tlv.h>
 #include "max98512.h"
 #include "maxim_dsm.h"
-#ifdef CONFIG_SND_SOC_MAXIM_DSM
-#include "maxim_dsm_cal.h"
-#endif /* CONFIG_SND_SOC_MAXIM_DSM_CAL */
 
 #define DEBUG_MAX98512
 #ifdef DEBUG_MAX98512
@@ -1095,31 +1092,6 @@ static int __max98512_spk_enable(struct max98512_priv *max98512)
 				MAX98512_MEAS_VI_EN,
 				vimon);
 
-	battery_temp = maxdsm_cal_get_temp_from_power_supply();
-
-	if (battery_temp > 50) {
-		msg_maxim("battery_temp[%d] over 50", battery_temp);
-		max98512_wrapper_write(max98512, MAX98512B,
-			 MAX98512_R0059_BROWNOUT_LVL2_THRESH,
-			 0x30);
-		max98512_wrapper_write(max98512, MAX98512B,
-			 MAX98512_R005A_BROWNOUT_LVL3_THRESH,
-			 0x10);
-		max98512_wrapper_write(max98512, MAX98512B,
-			 MAX98512_R0087_BOOST_BYPASS_2,
-			 0x3);
-	} else {
-		msg_maxim("battery_temp[%d] under 50", battery_temp);
-		max98512_wrapper_write(max98512, MAX98512B,
-			 MAX98512_R0059_BROWNOUT_LVL2_THRESH,
-			 0x40);
-		max98512_wrapper_write(max98512, MAX98512B,
-			 MAX98512_R005A_BROWNOUT_LVL3_THRESH,
-			 0x20);
-		max98512_wrapper_write(max98512, MAX98512B,
-			 MAX98512_R0087_BOOST_BYPASS_2,
-			 0x2);
-	}
 	if (pdata->boost_mode != 0) {
 		max98512_wrapper_write(max98512, MAX98512B,
 				 MAX98512_R0087_BOOST_BYPASS_2,
@@ -1245,39 +1217,6 @@ static int max98512_dai_mute_stream(struct snd_soc_dai *dai,
 		max98512_spk_enable(max98512, mute != 0 ? 0 : 1);
 	}
 
-#ifdef CONFIG_SND_SOC_MAXIM_DSM
-	if ((!pdata->nodsm) && (stream == SNDRV_PCM_STREAM_CAPTURE)
-		&& (mute == 0)) {
-
-		msg_maxim("set maxdsm calibration");
-
-		ret = maxdsm_cal_get_rdc(&rdc);
-		if (ret || rdc <= 0) {
-			pr_info("%s: rdc(0x%08x)\n", __func__, rdc);
-			goto exit;
-		}
-
-		ret = maxdsm_cal_get_temp(&temp);
-		if (ret || temp <= 0) {
-			pr_info("%s: temp(%d)\n", __func__, temp);
-			goto exit;
-		}
-
-		/* left channel */
-		ret = maxdsm_set_rdc_temp_ch(rdc, (int)(temp / 10), 0);
-
-		if (max98512->mono_stereo) {
-			ret = maxdsm_cal_get_rdc_r(&rdc_r);
-			if (ret < 0 || rdc_r <= 0) {
-				pr_err("%s: Failed to set calibration ret = (%d) rdc_r(0x%08x)\n",
-					__func__, ret, rdc_r);
-				goto exit;
-			}
-			maxdsm_set_rdc_temp_ch(rdc_r, (int)(temp / 10), 1);
-		}
-	}
-exit:
-#endif
 	return 0;
 }
 

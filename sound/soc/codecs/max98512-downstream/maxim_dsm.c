@@ -9,8 +9,7 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include "maxim_dsm.h"
-#include "maxim_dsm_power.h"
-#include "maxim_dsm_cal.h"
+// #include "maxim_dsm_cal.h"
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif /* CONFIG_COMPAT */
@@ -28,6 +27,7 @@ pr_info("[MAXIM_DSM] %s: " format "\n", __func__, ## args)
 #define V40_SIZE	((PARAM_DSM_4_0_MAX - PARAM_DSM_3_5_MAX) >> 1)
 #define A_V35_SIZE	(PARAM_A_DSM_3_5_MAX >> 1)
 #define A_V40_SIZE	((PARAM_A_DSM_4_0_MAX - PARAM_A_DSM_3_5_MAX) >> 1)
+#define SAFE_MODE_THERMAL_MIN_GAIN (0x26666666)
 
 /* MAX98512 one stop mode */
 enum one_stop_mode {
@@ -2241,7 +2241,7 @@ int maxdsm_set_thermal_min_gain(int enable)
 		if (enable == 0)
 			value = enable;
 		else
-			value = maxdsm_cal_get_thermal_min_gain();
+			value = SAFE_MODE_THERMAL_MIN_GAIN;
 		maxdsm.param[PARAM_THERMAL_MIN_GAIN] = value;
 		maxdsm.param[PARAM_WRITE_FLAG] = PARAM_WRITE_SET_THERM_MIN_GAIN;
 		maxdsm.filter_set = DSM_ID_FILTER_SET_AFE_CNTRLS;
@@ -2257,7 +2257,7 @@ int maxdsm_set_thermal_min_gain(int enable)
 		if (enable == 0)
 			value = enable;
 		else
-			value = maxdsm_cal_get_thermal_min_gain();
+			value = SAFE_MODE_THERMAL_MIN_GAIN;
 
 		maxdsm.param[DSM_API_SETGET_THERMAL_MIN_GAIN] = value;
 		maxdsm.param[DSM_API_SETGET_WRITE_FLAG] = PARAM_WRITE_SET_THERM_MIN_GAIN;
@@ -2716,20 +2716,6 @@ EXPORT_SYMBOL_GPL(maxdsm_get_spk_state);
 
 void maxdsm_set_spk_state(int state, int osm_mode)
 {
-	maxdsm.spk_state = state;
-	if (state == 0) {
-		maxdsm_power_ppr_control(0);
-		maxdsm_power_control(0);
-	}
-	else {
-		switch (osm_mode) {
-		case MAX98512_OSM_STEREO:
-		case MAX98512_OSM_MONO_R:
-			maxdsm_power_ppr_control(1);
-			break;
-		}
-
-	}
 }
 EXPORT_SYMBOL_GPL(maxdsm_set_spk_state);
 
